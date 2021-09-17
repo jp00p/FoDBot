@@ -80,8 +80,22 @@ NON_TREK_SHOWS = [
   ["Buffy the Vampire Slayer", 95, buffy_eps]
 ]
 
-
 war_intros = ["War! Hoo! Good god y'all!", "War! We're going to war!", "That nonsense is *centuries* behind us!", "There's been no formal declaration, sir.", "Time to pluck a pigeon!"]
+
+def score_fuzz(ratios):
+  ratio, pratio = ratios
+  THRESHOLD = 75
+  BONUS_THRESHOOLD = 80
+  if ratio >= THRESHOLD and pratio >= THRESHOLD:
+    if ratio <= BONUS_THRESHOLD:
+      return 2
+    return 1
+  return 0
+
+def score_substring(answer, guess):
+  if answer in guess:
+    return 1
+  return 0
 
 @client.event
 async def on_ready():
@@ -111,28 +125,32 @@ async def on_message(message):
 
     threshold = 75
 
-    correct_answer = QUIZ_EPISODE[0].strip()
+    correct_answer = QUIZ_EPISODE[0].strip().lower()
     
-    alt_answer = correct_answer.lower().split()
+    alt_answer = correct_answer.split()
     stopwords = ["the", "a", "of", "is"]
     resultwords  = [word for word in alt_answer if word.lower() not in stopwords]
     alt_answer = ' '.join(resultwords)
 
-    ratio = fuzz.ratio(message.content.lower(), correct_answer.lower())
-    pratio = fuzz.partial_ratio(message.content.lower(), correct_answer.lower())
+    answers = [correct_answer, alt_answer]
+    guess = message.content.lower()
+    ratios = map(lambda answer: fuzz.ratio(answer, guess), answers)
+    pratios = map(lambda answer: fuzz.pratio(answer, guess), answers)
+    fuzzy_scores = map(score_fuzz, zip(ratios, pratios))
+    substring_scores = map(lambda answer: score_substring(answer, guess), answers)
+    fuzzy_score = max(fuzzy_scores)
+    substring_score = max(substring_score)
 
-    ratio2 = fuzz.ratio(message.content.lower(), alt_answer)
-    pratio2 = fuzz.partial_ratio(message.content.lower(), alt_answer)
-    
-            
-    if (ratio >= threshold and pratio >= threshold) or (correct_answer.lower() in message.content.lower()) or (correct_answer.lower().replace(" ", "") == message.content.lower().replace(" ", "") or (ratio2 >= threshold and pratio2 >= threshold)):
+    award = None
+    if substring_score > 0:
+      # If there is a precise substring match, don't allow fuzzy score bonus
+      award = substring_score
+    elif fuzzy_score > 0:
+      award = fuzzy_score
 
+    if score:
       id = str(message.author.mention)
       keys = db.keys()
-      award = 1
-      
-      if ((ratio < 80) or (ratio2 < 80)) and (correct_answer.lower() not in message.content.lower()):
-        award = 2
       
       if id in keys:
         points = db[id]
@@ -143,7 +161,7 @@ async def on_message(message):
       if id not in CORRECT_ANSWERS:
           CORRECT_ANSWERS.append(id)
       if id not in FUZZ:
-        FUZZ[id] = "Fuzz: {0},{1}".format(ratio, ratio2)
+        FUZZ[id] = "Fuzz: " + ",".join(ratios)
         if award == 2:
           emoji = " BONUS"
           FUZZ[id] += " " + str(emoji)
