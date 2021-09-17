@@ -134,10 +134,10 @@ async def on_message(message):
 
     answers = [correct_answer, alt_answer]
     guess = message.content.lower()
-    ratios = map(lambda answer: fuzz.ratio(answer, guess), answers)
-    pratios = map(lambda answer: fuzz.partial_ratio(answer, guess), answers)
-    fuzzy_scores = map(score_fuzz, zip(ratios, pratios))
-    substring_scores = map(lambda answer: score_substring(answer, guess), answers)
+    ratios = list(map(lambda answer: fuzz.ratio(answer, guess), answers))
+    pratios = list(map(lambda answer: fuzz.partial_ratio(answer, guess), answers))
+    fuzzy_scores = list(map(score_fuzz, zip(ratios, pratios)))
+    substring_scores = list(map(lambda answer: score_substring(answer, guess), answers))
     fuzzy_score = max(fuzzy_scores)
     substring_score = max(substring_scores)
 
@@ -168,7 +168,7 @@ async def on_message(message):
       if id not in CORRECT_ANSWERS:
           CORRECT_ANSWERS.append(id)
       if id not in FUZZ:
-        FUZZ[id] = "Fuzz: " + ",".join(list(ratios))
+        FUZZ[id] = "Fuzz: " + str(",".join(map(str, ratios)))
         if award == 2:
           FUZZ[id] += " BONUS"
           
