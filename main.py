@@ -168,6 +168,21 @@ async def on_message(message):
   if message.channel.id not in [888090476404674570]:
     return
 
+
+  old_id = str(message.author.mention)
+  keys = db.keys()
+  # handle old scores
+  if old_id in db.keys():
+    new_id = str(message.author.id)
+    old_points = db[old_id]
+    player_data = {
+      "name" : message.author.name,
+      "mention" : message.author.mention,
+      "score" : old_points
+    }
+    del db[old_id]
+    db[new_id] = player_data
+
   if QUIZ_EPISODE:
 
     threshold = 72  # fuzz threshold
@@ -210,23 +225,29 @@ async def on_message(message):
     
       if (ratio < 80 and pratio < 80):
         award = 2
-
-      id = str(message.author.mention)
-    
+     
+      id = str(message.author.id) # new db stuff
       if id not in CORRECT_ANSWERS:
         
         keys = db.keys()
         if id in keys:
-          points = db[id]
-          points += award
-          db[id] = points
+          player = db[id].value
+          player["score"] += award
+          db[id] = player
         else:
-          db[id] = award
-              
+          db[id] = {
+            "name" : message.author.name,
+            "mention" : message.author.mention,
+            "score" : award
+          }
+
         if id not in FUZZ:
-          FUZZ[id] = "Correctitude: " + str(normalness)
-          if award == 2:
-            FUZZ[id] += " BONUS"
+          score_str = "`Correctitude: " + str(normalness) +"`"
+          if award == 1:
+            score_str += " <:combadge:867891664886562816>"
+          else:
+            score_str += " <a:combadge_spin:867891818317873192>"
+          FUZZ[id] = score_str
 
         CORRECT_ANSWERS.append(id)
     else:
@@ -241,7 +262,7 @@ async def on_message(message):
     ep_season = ep[2]
     ep_episode = ep[2]
     msg = "Random Trek episode for you!\n> *{0}* - **{1}** - (Season {2} Episode {3})".format(series_name, ep_title, ep_season, ep_episode)
-    await message.channel.send(msg)
+    await message.channel.send(msg)  
 
   if message.content.lower().startswith("!report"):
     if len(LOG) != 0:
@@ -295,9 +316,11 @@ async def on_message(message):
     scores = []
     msg = "```TOP SCORES:\n==============================\n\n"
     for c in db.keys():
-      un = c.replace("@", "").replace("<", "").replace(">", "").replace("!", "")
-      user = await client.fetch_user(un)
-      scores.append({"name": user.name, "score" : db[str(c)]})
+      if c.isnumeric():
+        player = db[str(c)]
+        #un = c.replace("@", "").replace("<", "").replace(">", "").replace("!", "")
+        scores.append({"name": player["name"], "score" : player["score"]})
+    
     scores = sorted(scores, key=lambda k: k['score'], reverse=True)
     for s in scores:
       msg += s["name"] + ": " + str(s["score"]) + "\n"
@@ -390,21 +413,19 @@ async def episode_quiz(non_trek=False, simpsons=False):
 
   show_id = selected_show[1]
   show_eps = selected_show[2]
-
+  
   # don't pick the same episode as last time
   episode = random.choice(show_eps)
+  
   if selected_show[0] in PREVIOUS_EPS.keys():
     while episode == PREVIOUS_EPS[selected_show[0]]:
-      print("Don't choose " + str(selected_show[0]) + " again!")
       episode = random.choice(show_eps)
+  PREVIOUS_EPS[selected_show[0]] = episode
   
   episode = episode.split("|")
   QUIZ_EPISODE = episode
   QUIZ_SHOW = selected_show[0] # current show
 
-  #print(QUIZ_SHOW)
-  #print(QUIZ_EPISODE)
-  
   episode_images = tmdb.TV_Episodes(show_id, episode[2], episode[3]).images()
   image = random.choice(episode_images["stills"])
   r = requests.get(TMDB_IMG_PATH + image["file_path"], headers=headers)
@@ -431,14 +452,13 @@ async def quiz_finished():
   else:
     msg += "Chula! These crewmembers got it:\n"
     for c in CORRECT_ANSWERS:
-      points = db[str(c)]
-      msg += c + " - Points: **" + str(points) + "** - " + FUZZ[str(c)] + "\n"
+      player = db[str(c)].value
+      msg += player["mention"] + " - Points: **" + str(player["score"]) + "** - " + FUZZ[str(c)] + "\n"
   await quiz_channel.send(msg)
   
   # update the quiz stuff
   CORRECT_ANSWERS = [] # winners
   FUZZ = {} # fuzz report
-  PREVIOUS_EPS[str(QUIZ_SHOW)] = QUIZ_EPISODE # so we don't pick it again
   QUIZ_SHOW = False 
   QUIZ_EPISODE = False # the current episode
 
