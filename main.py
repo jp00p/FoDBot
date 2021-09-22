@@ -7,6 +7,7 @@ import tmdbsimple as tmdb
 import requests
 import asyncio
 import string
+from PIL import Image
 from fuzzywuzzy import fuzz
 from replit import db
 
@@ -17,8 +18,6 @@ from replit import db
 # random vs
 # random ranking
 # ...
-
-
 
 tmdb.API_KEY = os.getenv('TMDB_KEY')
 TMDB_IMG_PATH = "https://image.tmdb.org/t/p/original"
@@ -58,6 +57,16 @@ DISCO_ID = 67198
 PICARD_ID = 85949
 TAS_ID = 1992
 SUNNY_ID = 2710
+
+SLOTS =  {
+    "TNG" : {"files" : "./slots/tng/", "evil": "armus", "good": "q"},
+}
+
+# SLOTS["TNG"]["files"]
+
+
+
+
 
 def load_file_into_array(file_name):
   file_obj = open(file_name, "r") 
@@ -196,7 +205,7 @@ async def on_message(message):
     guess = "".join(l for l in guess if l not in string.punctuation).split()
 
     # remove common words
-    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part"]
+    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part", "in", "are", "an", "as"]
     resultwords  = [word for word in correct_answer if word.lower() not in stopwords]
     guesswords = [word for word in guess if word.lower() not in stopwords]
     
@@ -253,6 +262,19 @@ async def on_message(message):
     else:
       if (ratio >= threshold-6 and pratio >= threshold-6):
         await message.add_reaction(EMOJI["shocking"])
+
+
+
+
+
+
+
+  if message.content.lower().startswith("!slots"):
+    result = roll_slot("TNG")
+    await asyncio.sleep(1)
+    await message.channel.send(file=discord.File("slot_results.png"))
+
+
 
   if message.content.lower().startswith("!randomep"):
     series = random.choice(TREK_SHOWS)
@@ -464,5 +486,93 @@ async def quiz_finished():
 
   print("Quiz finished!")
 
+
+
+def roll_slot(slot_series):
+  global SLOTS
+  slot_to_roll = SLOTS[slot_series]
+  files = os.listdir(slot_to_roll["files"])
+  clean_files = []
+  for f in files:
+    clean_files.append(f.replace(".png", ""))
+  results = []
+  win_weights = []
+
+  # print("Slots and Images:")
+  # print(slot_to_roll)
+  # print(files)
+  # print("=============")
+  
+  for r in clean_files:
+    if r == slot_to_roll["evil"]:
+      win_weights.append(1)
+    else:
+      win_weights.append(1000)
+
+  # print("Weights:")
+  # print(win_weights)
+  # print("=============")
+
+  for i in range(3):
+    results.append(random.choice(files))
+
+  image1 = Image.open(slot_to_roll["files"] + results[0]).resize((150,150))
+  image2 = Image.open(slot_to_roll["files"] + results[1]).resize((150,150))
+  image3 = Image.open(slot_to_roll["files"] + results[2]).resize((150,150))
+  
+  
+
+  # print("The Results:")
+  # print(results)
+  # print(set(results))
+  # print(len(results), len(set(results)))
+  # print("=============")
+  
+  award = 0
+  if len(set(results)) == 1:
+    if slot_to_roll["good"] in results:
+        award = 4
+    else:
+      award = 3 # big win
+  elif len(set(results)) == 2:
+        award = 2 # small win
+  else:
+      award = 1 # loss
+
+  color = (0,0,0, 128)
+
+  if award == 4:
+    color = (255,255,0, 128)
+  if award == 3:
+    color = (0,255,255, 128)
+  if award == 2:
+    color = (0,255,0, 128)
+  
+  get_concat_h_blank(image1,image2,image3,color).save('slot_results.png')
+  
+  return award
+
+
+def get_concat_h_blank(im1, im2, im3, color=(0, 0, 0)):
+  print(color)
+  dst = Image.new('RGBA', (im1.width + im2.width + im3.width + 32, max(im1.height, im2.height, im3.height+16)), color)
+  mask = Image.open("./slots/logo.jpg").convert('RGBA').resize((150,150))
+
+  final_images = []
+  originals = [im1, im2, im3]
+
+  for i in range(1,3+1):
+    img = Image.new('RGBA', (150,150), (0,0,0))
+    img.paste(mask)
+    img.paste(originals[i-1], (0,0), originals[i-1])
+    final_images.append(img)
+
+  dst.paste(final_images[0], (8, 8))
+  dst.paste(final_images[1], (im1.width+16, 8))
+  dst.paste(final_images[2], (im1.width+im2.width+24, 8))
+
+  return dst
+
+  
 
 client.run(os.getenv('TOKEN'))
