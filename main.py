@@ -42,6 +42,7 @@ PREVIOUS_EPS = {}
 EMOJI = {}
 QUIZ_SHOW = False
 LOG = []
+SLOTS_RUNNING = False
 
 TNG_ID = 655
 VOY_ID = 1855
@@ -59,7 +60,32 @@ TAS_ID = 1992
 SUNNY_ID = 2710
 
 SLOTS =  {
-    "TNG" : {"files" : "./slots/tng/", "evil": "armus", "good": "q"},
+    "TNG" : {
+      "files" : "./slots/tng/", 
+      "matches" : {
+        "villains" : ["armus", "pakled", "lore"],
+        "federation captains" : ["picard", "jellico"],
+        "olds" : ["pulaski", "jellico", "picard", "kevin"],
+        "ensigns" : ["ro", "wesley"],
+        "omnipotent" : ["q", "armus", "kevin"],
+        "brothers" : ["data", "lore"],
+        "doctors" : ["beverly", "pulaski"],
+        "drunks" : ["obrien", "pulaski"],
+        "rascals" : ["ro", "guinan", "picard", "keiko"],
+        "aliens" : ["armus", "guinan", "pakled", "q", "worf", "troi", "ro", "kevin"],
+        "baby delivery team" : ["worf", "keiko"],
+        "robot fuck team" : ["data", "yar"],
+        "loving couple" : ["obrien", "keiko"],
+        "best friends" : ["geordi", "data"],
+        
+      }
+    },
+    "TEST" : {
+      "files" : "./slots/test/",
+      "matches" : {
+        "armus" : ["armus"]
+      }
+    }
 }
 
 # SLOTS["TNG"]["files"]
@@ -131,21 +157,6 @@ NON_TREK_SHOWS = [
 
 war_intros = ["War! Hoo! Good god y'all!", "War! We're going to war!", "That nonsense is *centuries* behind us!", "There's been no formal declaration, sir.", "Time to pluck a pigeon!"]
 
-def score_fuzz(ratios):
-  ratio, pratio = ratios
-  THRESHOLD = 75
-  BONUS_THRESHOLD = 80
-  if ratio >= THRESHOLD and pratio >= THRESHOLD:
-    if ratio <= BONUS_THRESHOLD:
-      return 2
-    return 1
-  return 0
-
-def score_substring(answer, guess):
-  if answer in guess:
-    return 1
-  return 0
-
 @client.event
 async def on_ready():
   global EMOJI
@@ -155,16 +166,17 @@ async def on_ready():
   EMOJI["allamaraine"] = discord.utils.get(client.emojis, name="allamaraine")
   EMOJI["love"] = discord.utils.get(client.emojis, name="love_heart_tgg")
   print(EMOJI)
+  keys = db.keys()
+  if "jackpot" not in keys:
+    db["jackpot"] = 0
+
   print('We have logged in as {0.user}'.format(client))
-  
-  
-  #episode_quiz.start()
   
 
 @client.event
 async def on_message(message):
   
-  global last_message_time, QUIZ_EPISODE, CORRECT_ANSWERS, FUZZ, EMOJI, LOG
+  global last_message_time, QUIZ_EPISODE, CORRECT_ANSWERS, FUZZ, EMOJI, LOG, SLOTS_RUNNING
   
   timestamp = int(time.time())
   difference = int(timestamp - last_message_time)
@@ -177,20 +189,9 @@ async def on_message(message):
   if message.channel.id not in [888090476404674570]:
     return
 
-
-  old_id = str(message.author.mention)
-  keys = db.keys()
-  # handle old scores
-  if old_id in db.keys():
-    new_id = str(message.author.id)
-    old_points = db[old_id]
-    player_data = {
-      "name" : message.author.name,
-      "mention" : message.author.mention,
-      "score" : old_points
-    }
-    del db[old_id]
-    db[new_id] = player_data
+  # register player if need be
+  register_player(message.author)
+  
 
   if QUIZ_EPISODE:
 
@@ -205,7 +206,7 @@ async def on_message(message):
     guess = "".join(l for l in guess if l not in string.punctuation).split()
 
     # remove common words
-    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part", "in", "are", "an", "as"]
+    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part", "in", "are", "an", "as", "and"]
     resultwords  = [word for word in correct_answer if word.lower() not in stopwords]
     guesswords = [word for word in guess if word.lower() not in stopwords]
     
@@ -230,6 +231,7 @@ async def on_message(message):
     # check answer
     if (ratio >= threshold and pratio >= threshold) or (guess == correct_answer):
       
+      # correct answer      
       award = 1
     
       if (ratio < 80 and pratio < 80):
@@ -237,18 +239,10 @@ async def on_message(message):
      
       id = str(message.author.id) # new db stuff
       if id not in CORRECT_ANSWERS:
-        
-        keys = db.keys()
-        if id in keys:
-          player = db[id].value
-          player["score"] += award
-          db[id] = player
-        else:
-          db[id] = {
-            "name" : message.author.name,
-            "mention" : message.author.mention,
-            "score" : award
-          }
+        player = db[id].value
+        player["score"] += award
+        db[id] = player
+
 
         if id not in FUZZ:
           score_str = "`Correctitude: " + str(normalness) +"`"
@@ -270,9 +264,88 @@ async def on_message(message):
 
 
   if message.content.lower().startswith("!slots"):
-    result = roll_slot("TNG")
-    await asyncio.sleep(1)
-    await message.channel.send(file=discord.File("slot_results.png"))
+    
+    if SLOTS_RUNNING or QUIZ_EPISODE:
+      # dont run again while slots are processing
+      await message.channel.send("Hold up! This bot isn't good at multitasking!")
+    
+    else:
+      free_spin = True
+      keys = db.keys()
+      id = str(message.author.id)
+      player = db[id].value
+      free_spin = True
+
+      if "spins" in player:
+        # not all players have spins
+        if player["spins"] >= 3:
+          free_spin = False
+      else:
+        player["spins"] = 0
+
+      if player["score"] < 1 and not free_spin:
+        await message.channel.send("You need at least 1 point to spin!")
+      else:
+        if not free_spin:
+          player["score"] -= 1
+        
+        # don't increment a freshly initialized spin
+        player["spins"] += 1
+        
+        spin_msg = "All I do is *slots slots slots*!"
+
+        if free_spin:
+          spin_msg += " This one's on the house! (after 3 free spins, they will cost you 1 point)"
+        else:
+          spin_msg += " Spending one of your points!"
+
+        spin_msg += " This is your #{0} spin".format(player["spins"])
+
+        db[id] = player # update player
+        await message.channel.send(spin_msg)
+      
+
+
+        # roll the slots!
+        silly_matches, matching_chars, jackpot = roll_slot("TNG")
+      
+        rewards = 0
+
+        await asyncio.sleep(0.5)
+        await message.channel.send(file=discord.File("slot_results.png"))
+      
+        match_msg = message.author.mention + "'s spin results: \n"
+        
+        if len(silly_matches) > 0:
+          match_msg += "**Matches: ** "
+          match_msg += ", ".join(silly_matches).title()
+          match_msg += " (" + str(len(silly_matches)) + " points!)\n"
+          rewards += len(silly_matches)
+          
+        if len(matching_chars) > 0:
+          match_msg += "**Transporter clones: ** "
+          match_msg += ", ".join(matching_chars).title()
+          match_msg += " (3 points!)\n"
+          rewards += 3
+
+        if jackpot:
+          match_msg += "\n**JACKPOT!!!**  You win the pot of: {0}\n".format(db["jackpot"])
+          rewards += db["jackpot"]
+          db["jackpot"] = 0
+
+        if rewards != 0:
+          player["score"] += rewards
+          if free_spin:
+            rewards += 1
+          match_msg += "\n**Total Profit:** {0} points.  Your total score: {1}".format(rewards-1, player["score"])
+          db[id] = player
+          await message.channel.send(match_msg)
+        else:
+          db["jackpot"] += 1
+          await message.channel.send("No dice! 1 point added to the jackpot, increasing it's bounty to {0}. Your score is now: {1}".format(db["jackpot"], player["score"]))
+
+        SLOTS_RUNNING = False
+
 
 
 
@@ -281,10 +354,16 @@ async def on_message(message):
     ep = random.choice(series[2]).split("|")
     series_name = series[0]
     ep_title = ep[0]
-    ep_season = ep[2]
+    ep_season = ep[1]
     ep_episode = ep[2]
     msg = "Random Trek episode for you!\n> *{0}* - **{1}** - (Season {2} Episode {3})".format(series_name, ep_title, ep_season, ep_episode)
     await message.channel.send(msg)  
+
+
+
+
+
+
 
   if message.content.lower().startswith("!report"):
     if len(LOG) != 0:
@@ -309,8 +388,7 @@ async def on_message(message):
     await message.channel.send(random.choice(affirmations))
 
   if message.content.lower() in ["bad bot"]:
-
-    await message.channel.send("Oops it's not my fault!")
+    await message.channel.send("Oops it's not my fault! Blame jp00p!")
 
   if message.content.lower().startswith('!faketngtitle'):
     titles = random.sample(tng_eps, 2)
@@ -324,6 +402,9 @@ async def on_message(message):
   if message.content.lower().startswith('!quiz') and not QUIZ_EPISODE:
     await message.channel.send("Getting episode image, please stand by...")
     episode_quiz.start()
+
+  if message.content.lower().startswith('!jackpot'):
+    await message.channel.send("Current jackpot bounty is: {0}".format(db["jackpot"]))
 
   if message.content.lower().startswith('!tvquiz') and not QUIZ_EPISODE:
     await message.channel.send("Getting episode image, please stand by...")
@@ -455,7 +536,7 @@ async def episode_quiz(non_trek=False, simpsons=False):
     f.write(r.content)
   
   await asyncio.sleep(2)
-  LOG = []
+  LOG = [] # reset the log
   await quiz_channel.send(file=discord.File("ep.jpg"))
   await quiz_channel.send("Which episode of **__"+str(show_name)+"__** is this? <a:horgahn_dance:844351841017921597>")
 
@@ -470,7 +551,8 @@ async def quiz_finished():
   msg = "The episode title was: **{0}** (Season {1} Episode {2})\n".format(QUIZ_EPISODE[0].strip(), QUIZ_EPISODE[2], QUIZ_EPISODE[3])
   
   if len(CORRECT_ANSWERS) == 0:
-    msg += "Did you win? Hardly! "
+    msg += "Did you win? Hardly! Adding a point to the slots jackpot."
+    db["jackpot"] += 1
   else:
     msg += "Chula! These crewmembers got it:\n"
     for c in CORRECT_ANSWERS:
@@ -489,72 +571,58 @@ async def quiz_finished():
 
 
 def roll_slot(slot_series):
-  global SLOTS
+  global SLOTS, SLOTS_RUNNING
+
+  SLOTS_RUNNING = True
   slot_to_roll = SLOTS[slot_series]
   files = os.listdir(slot_to_roll["files"])
-  clean_files = []
-  for f in files:
-    clean_files.append(f.replace(".png", ""))
   results = []
-  win_weights = []
-
-  # print("Slots and Images:")
-  # print(slot_to_roll)
-  # print(files)
-  # print("=============")
   
-  for r in clean_files:
-    if r == slot_to_roll["evil"]:
-      win_weights.append(1)
-    else:
-      win_weights.append(1000)
-
-  # print("Weights:")
-  # print(win_weights)
-  # print("=============")
-
   for i in range(3):
     results.append(random.choice(files))
 
+  matching_results = [s.replace(".png", "") for s in set(results)]
+
+  silly_matches = []
+
+  for match_title in slot_to_roll["matches"]:
+    print(f"Checking {match_title}...")
+    matches = slot_to_roll["matches"][match_title]
+    match_count = 0
+    for m in matches:
+      if m in matching_results:
+        match_count += 1
+    if match_count >= 2:
+      silly_matches.append(match_title)
+        
   image1 = Image.open(slot_to_roll["files"] + results[0]).resize((150,150))
   image2 = Image.open(slot_to_roll["files"] + results[1]).resize((150,150))
   image3 = Image.open(slot_to_roll["files"] + results[2]).resize((150,150))
   
-  
+  matching_chars = []
+  result_set = set(results)
+  matching_results = [s.replace(".png", "") for s in result_set]
+  jackpot = False
 
-  # print("The Results:")
-  # print(results)
-  # print(set(results))
-  # print(len(results), len(set(results)))
-  # print("=============")
-  
-  award = 0
-  if len(set(results)) == 1:
-    if slot_to_roll["good"] in results:
-        award = 4
-    else:
-      award = 3 # big win
-  elif len(set(results)) == 2:
-        award = 2 # small win
-  else:
-      award = 1 # loss
+  if len(result_set) == 1:
+    matching_chars.append(results[0].replace(".png", ""))
+    jackpot = True
 
-  color = (0,0,0, 128)
+  if len(result_set) == 2:
+    for r in result_set:
+      if results.count(r) > 1:
+        matching_chars.append(r.replace(".png", ""))
 
-  if award == 4:
-    color = (255,255,0, 128)
-  if award == 3:
-    color = (0,255,255, 128)
-  if award == 2:
-    color = (0,255,0, 128)
-  
+
+  print("RESULT SET", result_set)
+  color = (0,0,0,100)
   get_concat_h_blank(image1,image2,image3,color).save('slot_results.png')
   
-  return award
+  return silly_matches, matching_chars, jackpot
 
 
 def get_concat_h_blank(im1, im2, im3, color=(0, 0, 0)):
-  print(color)
+  
   dst = Image.new('RGBA', (im1.width + im2.width + im3.width + 32, max(im1.height, im2.height, im3.height+16)), color)
   mask = Image.open("./slots/logo.jpg").convert('RGBA').resize((150,150))
 
@@ -572,6 +640,37 @@ def get_concat_h_blank(im1, im2, im3, color=(0, 0, 0)):
   dst.paste(final_images[2], (im1.width+im2.width+24, 8))
 
   return dst
+
+
+def register_player(user):
+  
+  keys = db.keys()
+  old_id = str(user.mention)
+  player_id = str(user.id)
+
+  # handle old scores if they're in there
+  if old_id in keys:
+    old_points = db[old_id]
+    player_data = {
+      "name" : user.name,
+      "mention" : user.mention,
+      "score" : old_points,
+      "spins" : 0
+    }
+    del db[old_id]
+    db[player_id] = player_data
+
+  # register brand new player
+  if player_id not in keys:
+    player_data = {
+      "name" : user.name,
+      "mention" : user.mention,
+      "score" : 0,
+      "spins" : 0
+    }
+    db[player_id] = player_data
+
+
 
   
 
