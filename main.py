@@ -66,6 +66,7 @@ SLOTS =  {
         "villains" : ["armus", "pakled", "lore"],
         "federation captains" : ["picard", "jellico"],
         "olds" : ["pulaski", "jellico", "picard", "kevin"],
+        "music box torture" : ["kevin", "troi"],
         "ensigns" : ["ro", "wesley"],
         "omnipotent" : ["q", "armus", "kevin"],
         "brothers" : ["data", "lore"],
@@ -77,6 +78,14 @@ SLOTS =  {
         "robot fuck team" : ["data", "yar"],
         "loving couple" : ["obrien", "keiko"],
         "best friends" : ["geordi", "data"],
+        "jazz funeral" : ["geordi", "ro"],
+        "engineers" : ["geordi", "obrien"],
+        "nexus travellers" : ["guinan", "picard"],
+        "related to jack crusher" : ["beverly", "wesley"],
+        "eggs for breakfast" : ["riker", "pulaski", "worf"],
+        "humanity on trial" : ["q", "picard"],
+        "shut up wesley" : ["picard", "wesley"],
+        "delta shift" : ["riker", "jellico"],
         
       }
     },
@@ -271,7 +280,6 @@ async def on_message(message):
     
     else:
       free_spin = True
-      keys = db.keys()
       id = str(message.author.id)
       player = db[id].value
       free_spin = True
@@ -311,6 +319,8 @@ async def on_message(message):
       
         rewards = 0
 
+        print(silly_matches)
+
         await asyncio.sleep(0.5)
         await message.channel.send(file=discord.File("slot_results.png"))
       
@@ -319,8 +329,8 @@ async def on_message(message):
         if len(silly_matches) > 0:
           match_msg += "**Matches: ** "
           match_msg += ", ".join(silly_matches).title()
-          match_msg += " (" + str(len(silly_matches)) + " points!)\n"
-          rewards += len(silly_matches)
+          match_msg += " (" + str(len(silly_matches)+1) + " points!)\n"
+          rewards += len(silly_matches)+1
           
         if len(matching_chars) > 0:
           match_msg += "**Transporter clones: ** "
@@ -415,18 +425,21 @@ async def on_message(message):
     episode_quiz.start(non_trek=True, simpsons=True)
 
   if message.content.lower().startswith('!scores') and not QUIZ_EPISODE:
-    keys = db.keys()
+
     scores = []
     msg = "```TOP SCORES:\n==============================\n\n"
     for c in db.keys():
       if c.isnumeric():
         player = db[str(c)]
+        spins = 0
+        if "spins" in player:
+          spins = player["spins"]
         #un = c.replace("@", "").replace("<", "").replace(">", "").replace("!", "")
-        scores.append({"name": player["name"], "score" : player["score"]})
+        scores.append({"name": player["name"], "score" : player["score"], "spins" : spins })
     
     scores = sorted(scores, key=lambda k: k['score'], reverse=True)
     for s in scores:
-      msg += s["name"] + ": " + str(s["score"]) + "\n"
+      msg += "{1} - {0} [Spins: {2}]\n".format(s["name"], s["score"], s["spins"])
     msg += "```"
     await message.channel.send(msg)
 
@@ -581,13 +594,16 @@ def roll_slot(slot_series):
   for i in range(3):
     results.append(random.choice(files))
 
-  matching_results = [s.replace(".png", "") for s in set(results)]
+  matching_results = [s.replace(".png", "") for s in results]
 
   silly_matches = []
 
+  print("match results", matching_results)
+
   for match_title in slot_to_roll["matches"]:
-    print(f"Checking {match_title}...")
+    #print(f"Checking {match_title}...")
     matches = slot_to_roll["matches"][match_title]
+    print("matches to check", matches)
     match_count = 0
     for m in matches:
       if m in matching_results:
@@ -614,10 +630,9 @@ def roll_slot(slot_series):
         matching_chars.append(r.replace(".png", ""))
 
 
-  print("RESULT SET", result_set)
   color = (0,0,0,100)
   get_concat_h_blank(image1,image2,image3,color).save('slot_results.png')
-  
+  print("silly matches", silly_matches)
   return silly_matches, matching_chars, jackpot
 
 
