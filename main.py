@@ -329,7 +329,7 @@ async def on_message(message):
       else:
         roll = "TNG"
 
-      spins = 10000
+      spins = 100000
       spin_msg = f"Testing {roll} slots with {spins} spins! Nothing is going to work until this finishes sorry :)"
 
       await message.channel.send(spin_msg)
@@ -337,20 +337,28 @@ async def on_message(message):
       jackpots = 0
       wins = 0
       profitable_wins = 0
+      profits = []
       for i in range(spins):
+        
         silly,clones,jackpot = roll_slot(roll, generate_image=False)
+        profit = len(silly)
         if len(silly) > 0 or len(clones) > 0:
           wins += 1
         if len(silly) > 1 or len(clones) > 0:
           profitable_wins += 1
+        if len(clones) > 0:
+          profit += 3
         if jackpot:
           jackpots += 1
+        profits.append(profit)
+        
 
       chance_to_win = (wins/spins)*100
       chance_to_jackpot = (jackpots/spins)*100
       chance_for_profit = (profitable_wins/spins)*100
+      average_profit = sum(profits) / len(profits)
 
-      msg = "\nOut of {0} test spins, there were a total of {1} wins, {2} of those wins being jackpots.\nAverage chance of winning per spin: {3}%.\nAverage chance of jackpot per spin: {4}%.\nNumber of profitable spins: {5}\nChance for profit: {6}%".format(spins,wins,jackpots, chance_to_win, chance_to_jackpot, profitable_wins, chance_for_profit)
+      msg = "\nOut of {0} test spins, there were a total of {1} wins, {2} of those wins being jackpots.\nAverage chance of winning per spin: {3}%.\nAverage chance of jackpot per spin: {4}%.\nNumber of profitable spins: {5}\nChance for profit: {6}%\nAverage profit per spin: {7} points (not counting jackpots)".format(spins,wins,jackpots, chance_to_win, chance_to_jackpot, profitable_wins, chance_for_profit, average_profit)
 
       await message.channel.send(msg)
 
@@ -709,11 +717,12 @@ def roll_slot(slot_series, generate_image=True):
         match_count += 1
     if match_count >= 2:
       silly_matches.append(match_title)
-        
-  image1 = Image.open(slot_to_roll["files"] + results[0]).resize((150,150))
-  image2 = Image.open(slot_to_roll["files"] + results[1]).resize((150,150))
-  image3 = Image.open(slot_to_roll["files"] + results[2]).resize((150,150))
   
+  if generate_image:
+    image1 = Image.open(slot_to_roll["files"] + results[0]).resize((150,150))
+    image2 = Image.open(slot_to_roll["files"] + results[1]).resize((150,150))
+    image3 = Image.open(slot_to_roll["files"] + results[2]).resize((150,150))
+    
   matching_chars = []
   result_set = set(results)
   matching_results = [s.replace(".png", "") for s in result_set]
