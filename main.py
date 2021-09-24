@@ -66,6 +66,7 @@ SLOTS =  {
         "villains" : ["armus", "pakled", "lore"],
         "federation captains" : ["picard", "jellico"],
         "olds" : ["pulaski", "jellico", "picard", "kevin"],
+        "no law to fit your crime" : ["picard", "kevin"],
         "music box torture" : ["kevin", "troi"],
         "ensigns" : ["ro", "wesley"],
         "omnipotent" : ["q", "armus", "kevin"],
@@ -84,9 +85,59 @@ SLOTS =  {
         "related to jack crusher" : ["beverly", "wesley"],
         "eggs for breakfast" : ["riker", "pulaski", "worf"],
         "humanity on trial" : ["q", "picard"],
-        "shut up wesley" : ["picard", "wesley"],
         "delta shift" : ["riker", "jellico"],
-        
+        "imzadi" : ["troi", "riker"],
+        "nice house, good tea" : ["worf", "kevin"],
+        "empty death" : ["yar", "armus"],
+        "butting heads" : ["riker", "ro"],
+        "leotard buddies" : ["beverly", "troi"],
+        "security squad" : ["worf", "yar"],
+        "coffee and croissants" : ["picard", "beverly"],
+        "uncomfortable with children" : ["picard", "wesley"],
+        "bean flicking stance" : ["guinan", "q"]
+      }
+    },
+    "DS9" : {
+      "files" : "./slots/ds9/",
+      "matches": {
+        "family sisko" : ["jake", "sisko", "jennifer"],
+        "the dominion" : ["weyoun4", "weyoun5", "weyoun6", "yelgrun", "keevan", "kilana", "flakeleader", "goranagar", "ikatika"],
+        "\"old man\"" : ["jadzia", "sisko"],
+        "slug buddies" : ["ezri", "jadzia"],
+        "bajoran spirital leaders" : ["bareil", "opaka", "winn", "sisko"],
+        "siskos lovers" : ["jennifer", "kasidy"],
+        "love is blind" : ["winn", "dukat"],
+        "lunch date" : ["bashir", "garak"],
+        "holodeck date" : ["bashir", "obrien"],
+        "villains" : ["winn", "dukat", "flakeleader"],
+        "jeffreys" : ["weyoun4", "weyoun5", "weyoun6", "brunt"],
+        "enterprise officers" : ["worf", "obrien"],
+        "bell rioters" : ["sisko", "bashir", "jadzia"],
+        "promenade hangin'" : ["jake", "nog"],
+        "golden liquid" : ["bashir", "odo", "flakeleader"],
+        "voorta" : ["weyoun4", "weyoun5", "weyoun6", "yelgrun", "keevan", "kilana"],
+        "secret societies" : ["sloan", "garak", "flakeleader"],
+        "search for the cure" : ["bashir", "goranagar"],
+        "violent love" : ["worf", "jadzia"],
+        "dance in my golden sparkles" : ["odo", "kira"],
+        "niners" : ["sisko", "worf", "rom", "ezri", "kira", "bashir", "nog", "quark"],
+        "imagination baseball" : ["sisko", "bokai"],
+        "not real" : ["bokai", "vic"],
+        "breaking the ferengi mold" : ["rom", "nog", "ishka"],
+        "naguses" : ["brunt", "zek", "rom", "quark"],
+        "affectionate touches" : ["jake", "sisko"],
+        "drinking buddies" : ["gowron", "jadzia"],
+        "love conquers mountains" : ["quark", "odo"],
+        "did he fuck her mom?" : ["kira", "dukat"],
+        "cardassians" : ["dukat", "garak"],
+        "piano lessons" : ["vic", "odo"],
+        "lounge lizard" : ["vic", "nog"],
+        "who?" : ["goranagar", "ikatika", "yelgrun"],
+        "possible changeling spy" : ["gowron", "bashir"],
+        "prison pals" : ["obrien", "ezri", "martok", "bashir", "garak"],
+        "battled the pahwraiths" : ["winn", "jake", "sisko", "obrien"],
+        "senator killers" : ["garak", "sisko"],
+       
       }
     },
     "TEST" : {
@@ -149,7 +200,7 @@ TREK_WEIGHTS = []
 for i in range(len(TREK_SHOWS)):
   TREK_WEIGHTS.append(len(TREK_SHOWS[i][2]))
 
-print(TREK_WEIGHTS)
+#print(TREK_WEIGHTS)
 
 NON_TREK_SHOWS = [
   ["Friends", 1668, friends_eps],
@@ -174,7 +225,7 @@ async def on_ready():
   EMOJI["chula"] = discord.utils.get(client.emojis, name="chula_game")
   EMOJI["allamaraine"] = discord.utils.get(client.emojis, name="allamaraine")
   EMOJI["love"] = discord.utils.get(client.emojis, name="love_heart_tgg")
-  print(EMOJI)
+  #print(EMOJI)
   keys = db.keys()
   if "jackpot" not in keys:
     db["jackpot"] = 0
@@ -215,7 +266,7 @@ async def on_message(message):
     guess = "".join(l for l in guess if l not in string.punctuation).split()
 
     # remove common words
-    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part", "in", "are", "an", "as", "and"]
+    stopwords = ["the", "a", "of", "is", "teh", "th", "eht", "eth", "of", "for", "part 1", "part 2", "in", "are", "an", "as", "and"]
     resultwords  = [word for word in correct_answer if word.lower() not in stopwords]
     guesswords = [word for word in guess if word.lower() not in stopwords]
     
@@ -232,7 +283,7 @@ async def on_message(message):
 
     #print(ratio, pratio, guess, correct_answer)
 
-    print("{0} {1}:{2}".format(guess, ratio, pratio))
+    #print("{0} {1}:{2}".format(guess, ratio, pratio))
 
     if (ratio != 0) and (pratio != 0):
       LOG.append([guess, ratio, pratio])
@@ -269,11 +320,56 @@ async def on_message(message):
 
 
 
+  if message.content.lower().startswith("!testslots"):
+    
+    if message.author.id == 572540272563716116:
 
+      if message.content.lower().replace("!testslots ", "") == "ds9":
+        roll = "DS9"
+      else:
+        roll = "TNG"
+
+      spins = 10000
+      spin_msg = f"Testing {roll} slots with {spins} spins! Nothing is going to work until this finishes sorry :)"
+
+      await message.channel.send(spin_msg)
+
+      jackpots = 0
+      wins = 0
+      profitable_wins = 0
+      for i in range(spins):
+        silly,clones,jackpot = roll_slot(roll, generate_image=False)
+        if len(silly) > 0 or len(clones) > 0:
+          wins += 1
+        if len(silly) > 1 or len(clones) > 0:
+          profitable_wins += 1
+        if jackpot:
+          jackpots += 1
+
+      chance_to_win = (wins/spins)*100
+      chance_to_jackpot = (jackpots/spins)*100
+      chance_for_profit = (profitable_wins/spins)*100
+
+      msg = "\nOut of {0} test spins, there were a total of {1} wins, {2} of those wins being jackpots.\nAverage chance of winning per spin: {3}%.\nAverage chance of jackpot per spin: {4}%.\nNumber of profitable spins: {5}\nChance for profit: {6}%".format(spins,wins,jackpots, chance_to_win, chance_to_jackpot, profitable_wins, chance_for_profit)
+
+      await message.channel.send(msg)
+
+    else:
+
+      await message.channel.send("ah ah ah, you didn't say the magic word")
+
+
+    
+      
 
 
   if message.content.lower().startswith("!slots"):
     
+    if message.content.lower().replace("!slots ", "") == "ds9":
+      roll = "DS9"
+    else:
+      roll = "TNG"
+
     if SLOTS_RUNNING or QUIZ_EPISODE:
       # dont run again while slots are processing
       await message.channel.send("Hold up! This bot isn't good at multitasking!")
@@ -315,11 +411,11 @@ async def on_message(message):
 
 
         # roll the slots!
-        silly_matches, matching_chars, jackpot = roll_slot("TNG")
+        silly_matches, matching_chars, jackpot = roll_slot(roll)
       
         rewards = 0
 
-        print(silly_matches)
+        print(silly_matches, matching_chars, jackpot)
 
         await asyncio.sleep(0.5)
         await message.channel.send(file=discord.File("slot_results.png"))
@@ -329,8 +425,8 @@ async def on_message(message):
         if len(silly_matches) > 0:
           match_msg += "**Matches: ** "
           match_msg += ", ".join(silly_matches).title()
-          match_msg += " (" + str(len(silly_matches)+1) + " points!)\n"
-          rewards += len(silly_matches)+1
+          match_msg += " (" + str(len(silly_matches)) + " points!)\n"
+          rewards += len(silly_matches)
           
         if len(matching_chars) > 0:
           match_msg += "**Transporter clones: ** "
@@ -339,7 +435,7 @@ async def on_message(message):
           rewards += 3
 
         if jackpot:
-          match_msg += "\n**JACKPOT!!!**  You win the pot of: {0}\n".format(db["jackpot"])
+          match_msg += "\n** <@here> JACKPOT!!!** "+message.author.mention+" wins the pot of: {0}\n".format(db["jackpot"])
           rewards += db["jackpot"]
           db["jackpot"] = 0
 
@@ -428,18 +524,21 @@ async def on_message(message):
 
     scores = []
     msg = "```TOP SCORES:\n==============================\n\n"
+    total_spins = 0
     for c in db.keys():
       if c.isnumeric():
         player = db[str(c)]
         spins = 0
         if "spins" in player:
           spins = player["spins"]
+          total_spins += spins
         #un = c.replace("@", "").replace("<", "").replace(">", "").replace("!", "")
         scores.append({"name": player["name"], "score" : player["score"], "spins" : spins })
     
     scores = sorted(scores, key=lambda k: k['score'], reverse=True)
     for s in scores:
       msg += "{1} - {0} [Spins: {2}]\n".format(s["name"], s["score"], s["spins"])
+    msg += "\nTOTAL SPINS: {0}".format(total_spins)
     msg += "```"
     await message.channel.send(msg)
 
@@ -583,7 +682,7 @@ async def quiz_finished():
 
 
 
-def roll_slot(slot_series):
+def roll_slot(slot_series, generate_image=True):
   global SLOTS, SLOTS_RUNNING
 
   SLOTS_RUNNING = True
@@ -598,12 +697,12 @@ def roll_slot(slot_series):
 
   silly_matches = []
 
-  print("match results", matching_results)
+  #print("match results", matching_results)
 
   for match_title in slot_to_roll["matches"]:
     #print(f"Checking {match_title}...")
     matches = slot_to_roll["matches"][match_title]
-    print("matches to check", matches)
+    #print("matches to check", matches)
     match_count = 0
     for m in matches:
       if m in matching_results:
@@ -629,17 +728,20 @@ def roll_slot(slot_series):
       if results.count(r) > 1:
         matching_chars.append(r.replace(".png", ""))
 
-
+  logo = slot_series + "_logo.jpg"
   color = (0,0,0,100)
-  get_concat_h_blank(image1,image2,image3,color).save('slot_results.png')
-  print("silly matches", silly_matches)
+
+  if generate_image:
+    get_concat_h_blank(image1,image2,image3,color,logo).save('slot_results.png')
+  #print("silly matches", silly_matches)
+  SLOTS_RUNNING = False
   return silly_matches, matching_chars, jackpot
 
 
-def get_concat_h_blank(im1, im2, im3, color=(0, 0, 0)):
-  
+def get_concat_h_blank(im1, im2, im3, color, logo):
+  logo_location = "./slots/" + logo
   dst = Image.new('RGBA', (im1.width + im2.width + im3.width + 32, max(im1.height, im2.height, im3.height+16)), color)
-  mask = Image.open("./slots/logo.jpg").convert('RGBA').resize((150,150))
+  mask = Image.open(logo_location).convert('RGBA').resize((150,150))
 
   final_images = []
   originals = [im1, im2, im3]
