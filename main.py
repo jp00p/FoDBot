@@ -104,7 +104,7 @@ SLOTS =  {
         "the dominion" : ["weyoun4", "weyoun5", "weyoun6", "yelgrun", "keevan", "kilana", "flakeleader", "goranagar", "ikatika"],
         "\"old man\"" : ["jadzia", "sisko"],
         "slug buddies" : ["ezri", "jadzia"],
-        "bajoran spirital leaders" : ["bareil", "opaka", "winn", "sisko"],
+        "bajoran spiritual leaders" : ["bareil", "opaka", "winn", "sisko"],
         "siskos lovers" : ["jennifer", "kasidy"],
         "love is blind" : ["winn", "dukat"],
         "lunch date" : ["bashir", "garak"],
@@ -121,7 +121,7 @@ SLOTS =  {
         "violent love" : ["worf", "jadzia"],
         "dance in my golden sparkles" : ["odo", "kira"],
         "niners" : ["sisko", "worf", "rom", "ezri", "kira", "bashir", "nog", "quark"],
-        "imagination baseball" : ["sisko", "bokai"],
+        "take me out to the ballgame" : ["sisko", "bokai"],
         "not real" : ["bokai", "vic"],
         "breaking the ferengi mold" : ["rom", "nog", "ishka"],
         "naguses" : ["brunt", "zek", "rom", "quark"],
@@ -137,6 +137,8 @@ SLOTS =  {
         "prison pals" : ["obrien", "ezri", "martok", "bashir", "garak"],
         "battled the pahwraiths" : ["winn", "jake", "sisko", "obrien"],
         "senator killers" : ["garak", "sisko"],
+        "engineers" : ["obrien", "rom"],
+        "starfleet intelligence" : ["obrien", "bashir", "sloan"]
        
       }
     },
