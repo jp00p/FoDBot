@@ -12,24 +12,9 @@ from fuzzywuzzy import fuzz
 from replit import db
 
 
-# more ideas:
-# dustbuster clubs
-# random episode picker
-# random vs
-# random ranking
-# ...
-
 tmdb.API_KEY = os.getenv('TMDB_KEY')
 TMDB_IMG_PATH = "https://image.tmdb.org/t/p/original"
 TNG_ID = 655
-
-'''
-for s in range(1,7+1):
-  tng_seasons = tmdb.TV_Seasons(TNG_ID, s).info(language="en")
-  for e in tng_seasons["episodes"]:
-    with open('tng_episode_list', 'a') as f:
-      f.write(e["name"] + "|" + str(e["id"]) + "|" + str(s) + "|" + str(e["episode_number"]) + "\n")
-'''
 
 client = discord.Client()
 timeout = (60*5)
@@ -61,7 +46,8 @@ SUNNY_ID = 2710
 
 SLOTS =  {
     "TNG" : {
-      "files" : "./slots/tng/", 
+      "files" : "./slots/tng/",
+      "payout" : 1,
       "matches" : {
         "villains" : ["armus", "pakled", "lore"],
         "federation captains" : ["picard", "jellico"],
@@ -94,13 +80,14 @@ SLOTS =  {
         "security squad" : ["worf", "yar"],
         "coffee and croissants" : ["picard", "beverly"],
         "uncomfortable with children" : ["picard", "wesley"],
-        "bean flicking stance" : ["guinan", "q"]
+        "bean flicking stance" : ["guinan", "q"],
+        "i dont need your fantasy women" : ["riker", "q"]
       }
     },
     "DS9" : {
       "files" : "./slots/ds9/",
+      "payout" : 1.5,
       "matches": {
-        "family sisko" : ["jake", "sisko", "jennifer"],
         "the dominion" : ["weyoun4", "weyoun5", "weyoun6", "yelgrun", "keevan", "kilana", "flakeleader", "goranagar", "ikatika"],
         "\"old man\"" : ["jadzia", "sisko"],
         "slug buddies" : ["ezri", "jadzia"],
@@ -132,14 +119,18 @@ SLOTS =  {
         "cardassians" : ["dukat", "garak"],
         "piano lessons" : ["vic", "odo"],
         "lounge lizard" : ["vic", "nog"],
-        "who?" : ["goranagar", "ikatika", "yelgrun"],
+        "who?" : ["goranagar", "ikatika", "yelgrun", "keevan"],
         "possible changeling spy" : ["gowron", "bashir"],
         "prison pals" : ["obrien", "ezri", "martok", "bashir", "garak"],
         "battled the pahwraiths" : ["winn", "jake", "sisko", "obrien"],
         "senator killers" : ["garak", "sisko"],
         "engineers" : ["obrien", "rom"],
-        "starfleet intelligence" : ["obrien", "bashir", "sloan"]
-       
+        "starfleet intelligence" : ["obrien", "bashir", "sloan"],
+        "probably unmodified humans" : ["jake", "jennifer", "sisko", "obrien"],
+        "smugglers" : ["quark", "kasidy"],
+        "quark haters" : ["kira", "brunt", "odo"],
+        "rsvp" : ["jennifer", "jadzia", "bareil", "winn", "dukat", "weyoun4", "weyoun5", "weyoun6", "keevan", "sloan"],
+        "profitable lovers" : ["ishka", "zek"]
       }
     },
     "TEST" : {
@@ -164,6 +155,7 @@ def load_file_into_array(file_name):
 
 prompts = load_file_into_array("prompts")
 characters = load_file_into_array("characters")
+fmk_characters = load_file_into_array("fmk_chars")
 tuvixes = load_file_into_array("tuvixes")
 duelists = load_file_into_array("duel_characters")
 tng_eps = load_file_into_array("tng_episode_list")
@@ -240,6 +232,10 @@ async def on_message(message):
   
   global last_message_time, QUIZ_EPISODE, CORRECT_ANSWERS, FUZZ, EMOJI, LOG, SLOTS_RUNNING
   
+  SLOTS_CHANNEL = 891412391026360320
+  QUIZ_CHANNEL = 891412585646268486
+  CONVO_CHANNEL = 891412924193726465
+
   timestamp = int(time.time())
   difference = int(timestamp - last_message_time)
   random.seed()
@@ -248,14 +244,14 @@ async def on_message(message):
   if message.author == client.user:
     return
 
-  if message.channel.id not in [888090476404674570]:
+  if message.channel.id not in [888090476404674570, SLOTS_CHANNEL, QUIZ_CHANNEL, CONVO_CHANNEL]:
     return
 
   # register player if need be
   register_player(message.author)
   
 
-  if QUIZ_EPISODE:
+  if QUIZ_EPISODE and message.channel.id == QUIZ_CHANNEL:
 
     threshold = 72  # fuzz threshold
 
@@ -302,7 +298,10 @@ async def on_message(message):
       id = str(message.author.id) # new db stuff
       if id not in CORRECT_ANSWERS:
         player = db[id].value
-        player["score"] += award
+        if not CORRECT_ANSWERS:
+          player["score"] += award * 10
+        else:
+          player["score"] += award
         db[id] = player
 
 
@@ -322,7 +321,48 @@ async def on_message(message):
 
 
 
-  if message.content.lower().startswith("!testslots"):
+
+  if message.content.lower().startswith("!help"):
+    msg = '''
+
+__GAME COMMANDS:__
+`!slot` or `!slot ds9` - run the slot machine!
+`!setwager 1` - set your default wager to 1 (try a different number!)
+`!quiz` - run a Trek quiz!
+`!tvquiz` - run a non-Trek quiz!
+`!simpsons` - run a Simpsons quiz!
+`!scores` - list the current scores
+`!jackpot` - show the current jackpot
+`!report` - show the fuzz report for the last quiz
+
+__TREK COMMANDS:__
+`!tuvix` - create your own Tuvix
+`!dustbuster` - beam em down, let god sort em out
+`!randomep` - pick a random episode from all trek everywhere
+`!trektalk` - generate a conversation piece
+`!trekduel` - double-axe-handle your friends
+`!fmk` - you know the deal
+
+__SLOTS INFO:__
+TNG slots have a jackpot payout of `1x`
+DS9 slots have a jackpot payout of `1.5x`
+You get a jackpot if you get all 3 characters the same!
+
+__QUIZ INFO:__
+Episode quizzes do not have to be a perfect match.
+In fact, you get bonus points for being just wrong enough.
+You need to get your fuzziness between 72 and 80 for the bonus.
+First person to get it right (or wrong enough) will get their score multiplied by 10!
+Run the `!report` to see the details after a quiz!
+
+Report any fucked up bot behavior to jp00p!
+'''
+    await message.channel.send(msg)
+
+
+
+
+  if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith("!testslots"):
     
     if message.author.id == 572540272563716116:
 
@@ -373,14 +413,14 @@ async def on_message(message):
       
 
 
-  if message.content.lower().startswith("!slots"):
+  if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith("!slots"):
     
     if message.content.lower().replace("!slots ", "") == "ds9":
       roll = "DS9"
     else:
       roll = "TNG"
 
-    if SLOTS_RUNNING or QUIZ_EPISODE:
+    if SLOTS_RUNNING:
       # dont run again while slots are processing
       await message.channel.send("Hold up! This bot isn't good at multitasking!")
     
@@ -396,82 +436,130 @@ async def on_message(message):
           free_spin = False
       else:
         player["spins"] = 0
+      
+      wager = 1
+      if "wager" in player:
+        wager = player["wager"]
+      
 
-      if player["score"] < 1 and not free_spin:
-        await message.channel.send("You need at least 1 point to spin!")
+      if player["score"] < wager and not free_spin:
+        await message.channel.send(f"You need at least {wager} point(s) to spin! (Play the quiz to get more points or try changing your wager")
       else:
         if not free_spin:
-          player["score"] -= 1
+          player["score"] -= wager
         
         # don't increment a freshly initialized spin
         player["spins"] += 1
         
-        spin_msg = "All I do is *slots slots slots*!"
+        spinnin = ["All I do is *slots slots slots*!", "Time to pluck a pigeon!", "Rollin' with my homies...", "It's time to spin!", "Let's roll.", "ROLL OUT!", "Get it player.", "Go go gadget slots!", "Activating slot subroutines!", "Reversing polarity on Alpha-probability particle emitters."]
+        
+        spin_msg = message.author.mention + ": "
+        spin_msg += random.choice(spinnin)
 
         if free_spin:
-          spin_msg += " This one's on the house! (after 3 free spins, they will cost you 1 point)"
+          spin_msg += " **This one's on the house!** (after 3 free spins, they will cost you points!)"
         else:
-          spin_msg += " Spending one of your points!"
+          spin_msg += f" Spending `{wager}` of your points!"
 
-        spin_msg += " This is your #{0} spin".format(player["spins"])
+        spin_msg += " This is spin #{0} for you.".format(player["spins"])
 
         db[id] = player # update player
         await message.channel.send(spin_msg)
       
-
+        payout = SLOTS[roll]["payout"]
 
         # roll the slots!
-        silly_matches, matching_chars, jackpot = roll_slot(roll)
+        silly_matches, matching_chars, jackpot = roll_slot(roll, filename=str(message.author.id))
       
         rewards = 0
 
         print(silly_matches, matching_chars, jackpot)
 
-        await asyncio.sleep(0.5)
-        await message.channel.send(file=discord.File("slot_results.png"))
+        await message.channel.send(file=discord.File("./slot_results/"+str(message.author.id)+".png"))
       
         match_msg = message.author.mention + "'s spin results: \n"
         
         if len(silly_matches) > 0:
           match_msg += "**Matches: ** "
-          match_msg += ", ".join(silly_matches).title()
-          match_msg += " (" + str(len(silly_matches)) + " points!)\n"
-          rewards += len(silly_matches)
+          match_msg += "; ".join(silly_matches).title()
+          match_msg += " `" + str(len(silly_matches)*wager) + " point(s)`\n"
+          rewards += len(silly_matches) * wager
           
         if len(matching_chars) > 0:
           match_msg += "**Transporter clones: ** "
           match_msg += ", ".join(matching_chars).title()
-          match_msg += " (3 points!)\n"
-          rewards += 3
+          match_msg += " `({0} points)`\n".format(3 * wager)
+          rewards += 3 * wager
 
         if jackpot:
-          match_msg += "\n** <@here> JACKPOT!!!** "+message.author.mention+" wins the pot of: {0}\n".format(db["jackpot"])
+
+          amt = db["jackpot"]
+          total_amt = round(amt * payout)
+          #bonus = (total_amt - amt)
+
+          jackpot_art = '''
+ .     *        .    *       ________________ _      .    ____      *
+     *     .       .     .  <-_______________|*) .  ___==/    \==___
+                     . *     ~.      *   | |  ~  --==================--
+    J A C K P O T !!!    .      .      . | |  *  /  ^/  --=====--
+    .     .     .         .        ______|_|____/___/     .        .
+  .   *  .       *   .      ()   . ==__        ....^T/_      .
+      .      .      .*      .    .  *  --___________|\~  .     *.    .
+  .              .        .   *    .            .        *     .
+'''
+          match_msg += "```" + jackpot_art + "```"
+          match_msg += "\n> @here "+message.author.mention+" wins the pot of: {0} multiplied by the slots' jackpot payout rate of {1} -- for a total winnings of {2}\n========================\nJackpot has been reset to: **100** \n".format(db["jackpot"], payout, total_amt)
           rewards += db["jackpot"]
-          db["jackpot"] = 0
+          db["jackpot"] = 100 # reset the jackpot
 
         if rewards != 0:
           player["score"] += rewards
           if free_spin:
-            rewards += 1
-          match_msg += "\n**Total Profit:** {0} points.  Your total score: {1}".format(rewards-1, player["score"])
+            rewards += wager
+          match_msg += "> **Total Profit:** `{0} point(s)`.  Your score is now: `{1}`\n".format(rewards-wager, player["score"])
           db[id] = player
           await message.channel.send(match_msg)
         else:
-          db["jackpot"] += 1
-          await message.channel.send("No dice! 1 point added to the jackpot, increasing it's bounty to {0}. Your score is now: {1}".format(db["jackpot"], player["score"]))
+          
+          db["jackpot"] += wager
+          
+          loser = ["No dice!", "Bust!", "No matches!", "Better luck next time!", "Sad trombone!", "You didn't win!", "We have no prize to fit your loss -- ", "You may have won in the mirror universe, but not here!", "Sensors detect no matches.", "JACKP-- no wait, that's a loss.", "Close, but no cigar.", "Not a win!", "You would have won if it were opposite day!"]
+          
+          await message.channel.send("> {0}: {1} {2} point(s) added to the jackpot, increasing it's bounty to `{3}`. Your score is now: `{4}`".format(message.author.mention, random.choice(loser), wager, db["jackpot"], player["score"]))
 
         SLOTS_RUNNING = False
 
 
+  if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith("!setwager"):
+    player = db[str(message.author.id)].value
+    min_wager = 1
+    max_wager = 10000
+    wager_val = message.content.lower().replace("!setwager ", "")
 
 
-  if message.content.lower().startswith("!randomep"):
+    if wager_val.isnumeric():
+      wager_val = int(wager_val)
+      if wager_val >= min_wager and wager_val <= max_wager:
+        player["wager"] = int(wager_val)
+        msg = f"Your default wager has been set to {wager_val}"
+        db[str(message.author.id)] = player
+        await message.channel.send(msg)
+      else:
+        msg = f"Wager must be a number between `{min_wager}` and `{max_wager}`"
+        await message.channel.send(msg)
+    else:
+      msg = f"Wager must be a number between `{min_wager}` and `{max_wager}`"
+      await message.channel.send(msg)
+    
+
+
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith("!randomep"):
     series = random.choice(TREK_SHOWS)
     ep = random.choice(series[2]).split("|")
     series_name = series[0]
     ep_title = ep[0]
-    ep_season = ep[1]
-    ep_episode = ep[2]
+    ep_season = ep[2]
+    ep_episode = ep[3]
     msg = "Random Trek episode for you!\n> *{0}* - **{1}** - (Season {2} Episode {3})".format(series_name, ep_title, ep_season, ep_episode)
     await message.channel.send(msg)  
 
@@ -481,7 +569,7 @@ async def on_message(message):
 
 
 
-  if message.content.lower().startswith("!report"):
+  if message.channel.id == QUIZ_CHANNEL and message.content.lower().startswith("!report"):
     if len(LOG) != 0:
       msg = "```QUIZ REPORT: \n"
       for l in LOG:
@@ -491,10 +579,7 @@ async def on_message(message):
       msg = "No log entries currently"
     await message.channel.send(msg)
 
-  if message.content.lower().startswith('!trektalk') and difference <= timeout:
-    print("Too fast")
-    await message.channel.send("Please give the bot a little more time to cooldown.")
-    return
+
 
   if message.content.lower() in ["good bot", "nice bot", "fun bot", "sexy bot", "swell bot", "smart bot", "cool bot", "attractive bot", "entertaining bot", "cute bot", "friendly bot", "rad bot", "suave bot"]:
     
@@ -506,7 +591,14 @@ async def on_message(message):
   if message.content.lower() in ["bad bot"]:
     await message.channel.send("Oops it's not my fault! Blame jp00p!")
 
-  if message.content.lower().startswith('!faketngtitle'):
+
+
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith('!trektalk') and difference <= timeout:
+    print("Too fast")
+    await message.channel.send("Please give the bot a little more time to cooldown.")
+    return
+
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith('!faketngtitle'):
     titles = random.sample(tng_eps, 2)
     title1 = titles[0].split("|")
     title2 = titles[1].split("|")
@@ -515,22 +607,22 @@ async def on_message(message):
     new_episodes = [str(name1[0]+name2[1]).replace(" ", "").title().strip(), str(name2[0]+name1[1]).replace(" ", "").title().strip()]
     await message.channel.send("I made up a fake episode title for you: " + str(random.choice(new_episodes)))
 
-  if message.content.lower().startswith('!quiz') and not QUIZ_EPISODE:
+  if message.channel.id == QUIZ_CHANNEL and message.content.lower().startswith('!quiz') and not QUIZ_EPISODE:
     await message.channel.send("Getting episode image, please stand by...")
     episode_quiz.start()
 
-  if message.content.lower().startswith('!jackpot'):
+  if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith('!jackpot'):
     await message.channel.send("Current jackpot bounty is: {0}".format(db["jackpot"]))
 
-  if message.content.lower().startswith('!tvquiz') and not QUIZ_EPISODE:
+  if message.channel.id == QUIZ_CHANNEL and message.content.lower().startswith('!tvquiz') and not QUIZ_EPISODE:
     await message.channel.send("Getting episode image, please stand by...")
     episode_quiz.start(non_trek=True)
   
-  if message.content.lower().startswith('!simpsons') and not QUIZ_EPISODE:
+  if message.channel.id == QUIZ_CHANNEL and message.content.lower().startswith('!simpsons') and not QUIZ_EPISODE:
     await message.channel.send("Getting episode image, please stand by...")
     episode_quiz.start(non_trek=True, simpsons=True)
 
-  if message.content.lower().startswith('!scores') and not QUIZ_EPISODE:
+  if message.content.lower().startswith('!scores'):
 
     scores = []
     msg = "```TOP SCORES:\n==============================\n\n"
@@ -552,7 +644,7 @@ async def on_message(message):
     msg += "```"
     await message.channel.send(msg)
 
-  if message.content.lower().startswith('!trekduel'):
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith('!trekduel'):
     pick_1 = random.choice(characters)
     pick_2 = random.choice(characters)
     choose_intro = random.choice(war_intros)
@@ -561,7 +653,7 @@ async def on_message(message):
     msg = choose_intro + "\n================\n" + message.author.mention + ": Who would win in an arbitrary Star Trek duel?!\n" + "\n> **"+pick_1+"** vs **"+pick_2+"**"
     await message.channel.send(msg)
 
-  if message.content.lower().startswith('!tuvix'):
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith('!tuvix'):
     pick_1 = random.choice(tuvixes)
     pick_2 = random.choice(tuvixes)
     while pick_1 == pick_2:
@@ -576,9 +668,15 @@ async def on_message(message):
     msg = message.author.mention + " -- a transporter accident has combined **"+pick_1+"** and **"+pick_2+"** into a Tuvix-like creature!  Do you sacrifice the two separate characters for this new one?  Do you give this abomination the Janeway treatment? Can you come up with a line of dialog for this character? Most importantly, do you name it:\n\n> **"+tuvix1+"** or **"+tuvix2+"**???"
 
     await message.channel.send(msg)
-                                    
 
-  if message.content.lower().startswith('!dustbuster'):
+
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith("!fmk"):
+    choices = random.sample(fmk_characters, k=3)
+    msg = message.author.mention + ": Fuck Marry Kill (or Kiss) -- \n**{}, {}, {}**".format(choices[0], choices[1], choices[2])
+    await message.channel.send(msg)
+
+
+  if message.channel.id == CONVO_CHANNEL and message.content.lower().startswith('!dustbuster'):
     crew = []
     msg = message.author.mention + ", what kind of mission would this Dustbuster club be suited for?  Or are you totally screwed?\n"
     for i in range(5):
@@ -594,11 +692,14 @@ async def on_message(message):
     msg =  message.author.mention + "! You want to talk about Trek? Let's talk about Trek! \nPlease answer or talk about the following prompt! One word answers are highly discouraged!\n > **"+pick+"**"
     await message.channel.send(msg)
 
+
+  await client.change_presence(activity=discord.Game("Current Jackpot: {}".format(db["jackpot"]), type=3))
+
 @tasks.loop(seconds=31,count=1)
 async def episode_quiz(non_trek=False, simpsons=False):
   global QUIZ_EPISODE, TMDB_IMG_PATH, LAST_SHOW, QUIZ_SHOW, PREVIOUS_EPS, LOG
 
-  quiz_channel = client.get_channel(888090476404674570)
+  quiz_channel = client.get_channel(891412585646268486)
   
  
   headers = {'user-agent': 'Mozilla/5.0'}
@@ -668,7 +769,7 @@ async def quiz_finished():
   global QUIZ_EPISODE, CORRECT_ANSWERS, FUZZ, EMOJI, QUIZ_SHOW, PREVIOUS_EPS
   await asyncio.sleep(1)
   print("Ending quiz...")
-  quiz_channel = client.get_channel(888090476404674570)
+  quiz_channel = client.get_channel(891412585646268486)
 
   msg = "The episode title was: **{0}** (Season {1} Episode {2})\n".format(QUIZ_EPISODE[0].strip(), QUIZ_EPISODE[2], QUIZ_EPISODE[3])
   
@@ -692,7 +793,7 @@ async def quiz_finished():
 
 
 
-def roll_slot(slot_series, generate_image=True):
+def roll_slot(slot_series, generate_image=True, filename="slot_results.png"):
   global SLOTS, SLOTS_RUNNING
 
   SLOTS_RUNNING = True
@@ -743,7 +844,7 @@ def roll_slot(slot_series, generate_image=True):
   color = (0,0,0,100)
 
   if generate_image:
-    get_concat_h_blank(image1,image2,image3,color,logo).save('slot_results.png')
+    get_concat_h_blank(image1,image2,image3,color,logo).save("./slot_results/"+str(filename)+".png")
   #print("silly matches", silly_matches)
   SLOTS_RUNNING = False
   return silly_matches, matching_chars, jackpot
