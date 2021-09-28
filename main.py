@@ -223,7 +223,8 @@ async def on_ready():
   keys = db.keys()
   if "jackpot" not in keys:
     db["jackpot"] = 0
-
+  if "jackpots" not in keys:
+    db["jackpots"] = []
   print('We have logged in as {0.user}'.format(client))
   
 
@@ -410,6 +411,17 @@ Report any fucked up bot behavior to jp00p!
 
 
     
+  if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith("!jackpots"):
+    all_jackpots = db["jackpots"].value
+
+    if all_jackpots:
+      all_jackpots.reverse()
+      msg = "Previous jackpot winners:\n"
+      for j in all_jackpots:
+        msg += "{0}: {1}\n".format(j[1], j[0])
+      await message.channel.send(msg)
+    else:
+      await message.channel.send("Jackpot DB is currently empty!")
       
 
 
@@ -447,6 +459,7 @@ Report any fucked up bot behavior to jp00p!
       else:
         if not free_spin:
           player["score"] -= wager
+
         
         # don't increment a freshly initialized spin
         player["spins"] += 1
@@ -473,9 +486,8 @@ Report any fucked up bot behavior to jp00p!
       
         rewards = 0
 
-        print(silly_matches, matching_chars, jackpot)
-
-        await message.channel.send(file=discord.File("./slot_results/"+str(message.author.id)+".png"))
+        #print(silly_matches, matching_chars, jackpot)
+        #await message.channel.send(file=discord.File("./slot_results/"+str(message.author.id)+".png"))
       
         match_msg = message.author.mention + "'s spin results: \n"
         
@@ -496,7 +508,10 @@ Report any fucked up bot behavior to jp00p!
           amt = db["jackpot"]
           total_amt = round(amt * payout)
           #bonus = (total_amt - amt)
-
+          jackpot_data = [total_amt, message.author.name]
+          all_jackpots = db["jackpots"]
+          all_jackpots.append(jackpot_data)
+          db["jackpots"] = all_jackpots
           jackpot_art = '''
  .     *        .    *       ________________ _      .    ____      *
      *     .       .     .  <-_______________|*) .  ___==/    \==___
@@ -516,16 +531,33 @@ Report any fucked up bot behavior to jp00p!
           player["score"] += rewards
           if free_spin:
             rewards += wager
-          match_msg += "> **Total Profit:** `{0} point(s)`.  Your score is now: `{1}`\n".format(rewards-wager, player["score"])
+          match_msg += "**Total Profit:** `{0} point(s)`.  Your score is now: `{1}`\n".format(rewards-wager, player["score"])
           db[id] = player
-          await message.channel.send(match_msg)
+          
+          embed = discord.Embed(
+            title="Results",
+            color=discord.Color(0x1abc9c),
+            description=match_msg,
+          )
+
+          file = discord.File("./slot_results/{0}.png".format(message.author.id), filename=str(message.author.id)+".png")
+          embed.set_image(url="attachment://{0}.png".format(message.author.id))
+
+          await message.channel.send(embed=embed, file=file)
         else:
+          
           
           db["jackpot"] += wager
           
           loser = ["No dice!", "Bust!", "No matches!", "Better luck next time!", "Sad trombone!", "You didn't win!", "We have no prize to fit your loss -- ", "You may have won in the mirror universe, but not here!", "Sensors detect no matches.", "JACKP-- no wait, that's a loss.", "Close, but no cigar.", "Not a win!", "You would have won if it were opposite day!"]
+
+          embed = discord.Embed(
+            title="Results",
+            color=discord.Color(0xe74c3c),
+            description="{0}: {1} {2} point(s) added to the jackpot, increasing it's bounty to `{3}`. Your score is now: `{4}`".format(message.author.mention, random.choice(loser), wager, db["jackpot"], player["score"]),
+          )
           
-          await message.channel.send("> {0}: {1} {2} point(s) added to the jackpot, increasing it's bounty to `{3}`. Your score is now: `{4}`".format(message.author.mention, random.choice(loser), wager, db["jackpot"], player["score"]))
+          await message.channel.send(embed=embed)
 
         SLOTS_RUNNING = False
 
@@ -533,7 +565,7 @@ Report any fucked up bot behavior to jp00p!
   if message.channel.id == SLOTS_CHANNEL and message.content.lower().startswith("!setwager"):
     player = db[str(message.author.id)].value
     min_wager = 1
-    max_wager = 10000
+    max_wager = 100000
     wager_val = message.content.lower().replace("!setwager ", "")
 
 
