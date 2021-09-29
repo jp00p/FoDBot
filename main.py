@@ -513,14 +513,15 @@ Report any fucked up bot behavior to jp00p!
           all_jackpots.append(jackpot_data)
           db["jackpots"] = all_jackpots
           jackpot_art = '''
- .     *        .    *       ________________ _      .    ____      *
-     *     .       .     .  <-_______________|*) .  ___==/    \==___
-                     . *     ~.      *   | |  ~  --==================--
-    J A C K P O T !!!    .      .      . | |  *  /  ^/  --=====--
-    .     .     .         .        ______|_|____/___/     .        .
-  .   *  .       *   .      ()   . ==__        ....^T/_      .
-      .      .      .*      .    .  *  --___________|\~  .     *.    .
-  .              .        .   *    .            .        *     .
+      <a:red_alert:852987099257765938> JACKPOT!!! <a:red_alert:852987099257765938>
+                   ___
+      ___....-----'---'-----....___
+=========================================   
+       ___'---..._______...---'___          
+      (___)      _|_|_|_      (___)                      
+        \\____.-'_.---._'-.____//         
+          cccc'.__'---'__.'cccc                          
+                  ccccc
 '''
           match_msg += "```" + jackpot_art + "```"
           match_msg += "\n> @here "+message.author.mention+" wins the pot of: {0} multiplied by the slots' jackpot payout rate of {1} -- for a total winnings of {2}\n========================\nJackpot has been reset to: **100** \n".format(db["jackpot"], payout, total_amt)
@@ -556,8 +557,12 @@ Report any fucked up bot behavior to jp00p!
             color=discord.Color(0xe74c3c),
             description="{0}: {1} {2} point(s) added to the jackpot, increasing it's bounty to `{3}`. Your score is now: `{4}`".format(message.author.mention, random.choice(loser), wager, db["jackpot"], player["score"]),
           )
+
+          file = discord.File("./slot_results/{0}.png".format(message.author.id), filename=str(message.author.id)+".png")
+
+          embed.set_image(url="attachment://{0}.png".format(message.author.id))
           
-          await message.channel.send(embed=embed)
+          await message.channel.send(embed=embed, file=file)
 
         SLOTS_RUNNING = False
 
